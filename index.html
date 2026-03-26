@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>School Marks Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card2: #1c2330;
+    --border: #30363d;
+    --accent: #f78166;
+    --accent2: #58a6ff;
+    --accent3: #3fb950;
+    --accent4: #d2a8ff;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --danger: #f85149;
+    --warn: #e3b341;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ---- LOGIN ---- */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 60% 20%, #1a2332 0%, #0d1117 70%);
+    position: relative;
+    overflow: hidden;
+  }
+  #login-screen::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(88,166,255,0.06) 0%, transparent 70%);
+    top: -200px; right: -200px;
+    pointer-events: none;
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    position: relative;
+  }
+  .login-logo {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 32px;
+  }
+  .login-logo .icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent4));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .login-logo .brand { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
+  .login-logo .brand span { color: var(--accent2); }
+  .login-role-tabs {
+    display: flex; gap: 8px; margin-bottom: 28px;
+    background: var(--bg); border-radius: 10px; padding: 4px;
+  }
+  .role-tab {
+    flex: 1; padding: 8px; border-radius: 8px;
+    background: transparent; color: var(--muted);
+    border: none; cursor: pointer;
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 13px;
+    transition: all 0.2s;
+  }
+  .role-tab.active { background: var(--card2); color: var(--text); }
+  .field-group { margin-bottom: 18px; }
+  .field-group label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 8px; letter-spacing: 0.5px; text-transform: uppercase; }
+  .field-group input, .field-group select {
+    width: 100%; padding: 12px 16px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text);
+    font-family: 'Nunito', sans-serif; font-size: 15px;
+    outline: none; transition: border-color 0.2s;
+  }
+  .field-group input:focus, .field-group select:focus { border-color: var(--accent2); }
+  .field-group select option { background: var(--bg); }
+  .btn-login {
+    width: 100%; padding: 14px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent4));
+    border: none; border-radius: 12px; color: #fff;
+    font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+    margin-top: 8px;
+  }
+  .btn-login:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-login:active { transform: translateY(0); }
+  .login-error { color: var(--danger); font-size: 13px; margin-top: 12px; text-align: center; min-height: 20px; }
+
+  /* ---- APP SHELL ---- */
+  #app { display: none; min-height: 100vh; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 60px;
+    background: var(--card); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-brand { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 18px; }
+  .topbar-brand span { color: var(--accent2); }
+  .topbar-user {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 700;
+  }
+  .user-pill {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .user-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-admin { background: var(--accent); }
+  .dot-subject { background: var(--accent3); }
+  .btn-logout {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); border-radius: 8px; padding: 6px 14px;
+    cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 700;
+    transition: all 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+  .main-content { padding: 28px 28px; max-width: 1200px; margin: 0 auto; }
+
+  /* ---- PANELS ---- */
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .page-title { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; margin-bottom: 24px; }
+  .page-title span { color: var(--accent2); }
+
+  /* ---- ADMIN TABS ---- */
+  .admin-tabs {
+    display: flex; gap: 6px; margin-bottom: 28px;
+    border-bottom: 1px solid var(--border); padding-bottom: 0;
+  }
+  .admin-tab {
+    padding: 10px 18px; border-radius: 10px 10px 0 0;
+    background: transparent; color: var(--muted);
+    border: 1px solid transparent; border-bottom: none;
+    cursor: pointer; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 14px;
+    transition: all 0.2s; margin-bottom: -1px;
+  }
+  .admin-tab.active {
+    background: var(--card); color: var(--text);
+    border-color: var(--border); border-bottom-color: var(--card);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ---- CARDS GRID ---- */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .subject-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+    position: relative; transition: border-color 0.2s, transform 0.15s;
+    cursor: default;
+  }
+  .subject-card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+  .subject-card .s-name { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .subject-card .s-id { font-size: 12px; color: var(--muted); font-family: monospace; }
+  .subject-card .s-exams { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .card-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-sm {
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--text); font-family: 'Nunito', sans-serif;
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-sm:hover { background: var(--card2); }
+  .btn-sm.danger:hover { border-color: var(--danger); color: var(--danger); background: transparent; }
+  .btn-primary {
+    padding: 10px 20px; border-radius: 10px; border: none;
+    background: var(--accent2); color: #fff;
+    font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-danger {
+    padding: 10px 20px; border-radius: 10px; border: none;
+    background: var(--danger); color: #fff;
+    font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+
+  /* ---- FORM SECTION ---- */
+  .form-section {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; margin-bottom: 24px;
+  }
+  .form-section h3 { font-family: 'Syne', sans-serif; font-weight: 700; margin-bottom: 18px; font-size: 16px; color: var(--accent2); }
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .form-row .field-group { flex: 1; min-width: 160px; margin-bottom: 0; }
+  .info-note { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+  /* ---- MARKS TABLE ---- */
+  .table-wrap { overflow-x: auto; margin-top: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  thead th {
+    background: var(--card2); padding: 12px 14px;
+    text-align: left; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:hover { background: var(--card2); }
+  tbody td { padding: 10px 14px; }
+  tbody td input {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 6px 10px;
+    width: 80px; font-family: 'Nunito', sans-serif; font-size: 14px; outline: none;
+    transition: border-color 0.2s;
+  }
+  tbody td input:focus { border-color: var(--accent2); }
+
+  /* ---- EXAM MANAGEMENT ---- */
+  .exam-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 700;
+    margin: 4px;
+  }
+  .exam-chip .rm { cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1; }
+  .exam-chip .rm:hover { color: var(--danger); }
+  .exams-wrap { margin-bottom: 16px; }
+
+  /* ---- MODAL ---- */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 999;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 32px; width: 100%; max-width: 440px;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  }
+  .modal h3 { font-family: 'Syne', sans-serif; font-weight: 800; margin-bottom: 20px; font-size: 18px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+
+  /* ---- TOAST ---- */
+  .toast {
+    position: fixed; bottom: 28px; right: 28px;
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 20px;
+    font-size: 14px; font-weight: 700;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(80px); opacity: 0;
+    transition: all 0.3s; z-index: 9999; min-width: 240px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: var(--accent3); }
+  .toast.error { border-color: var(--danger); }
+
+  /* ---- GOOGLE SHEETS SETUP ---- */
+  .gs-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(63,185,80,0.1); border: 1px solid var(--accent3);
+    border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 700; color: var(--accent3);
+  }
+  .gs-badge.off { background: rgba(248,81,73,0.08); border-color: var(--danger); color: var(--danger); }
+
+  /* ---- SUBJECT TEACHER VIEW ---- */
+  .exam-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .exam-btn {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--card2); color: var(--muted); font-family: 'Nunito', sans-serif;
+    font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s;
+  }
+  .exam-btn.active {
+    background: var(--accent2); border-color: var(--accent2); color: #fff;
+  }
+
+  .save-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 1px solid var(--border);
+    padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+    z-index: 50;
+  }
+  .save-bar .info { font-size: 13px; color: var(--muted); }
+  .save-bar .actions { display: flex; gap: 10px; }
+  .btn-save {
+    padding: 10px 24px; border-radius: 10px; border: none;
+    background: var(--accent3); color: #fff;
+    font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-save:hover { opacity: 0.85; }
+  .btn-save.gs { background: #0f9d58; }
+  .pb20 { padding-bottom: 80px; }
+
+  @media (max-width: 600px) {
+    .main-content { padding: 16px; }
+    .login-box { padding: 32px 20px; margin: 16px; }
+    .form-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="icon">📚</div>
+      <div class="brand">EduMarks <span>Pro</span></div>
+    </div>
+    <div class="login-role-tabs">
+      <button class="role-tab active" onclick="switchRole('admin')">🏫 Class Teacher</button>
+      <button class="role-tab" onclick="switchRole('subject')">👨‍🏫 Subject Teacher</button>
+    </div>
+    <div class="field-group">
+      <label>Login ID</label>
+      <input type="text" id="inp-id" placeholder="Enter your ID" />
+    </div>
+    <div id="subject-select-wrap" style="display:none;" class="field-group">
+      <label>Select Subject</label>
+      <select id="inp-subject"></select>
+    </div>
+    <div class="field-group">
+      <label>Password</label>
+      <input type="password" id="inp-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <button class="btn-login" onclick="doLogin()">Login →</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">EduMarks <span>Pro</span></div>
+    <div class="topbar-user">
+      <div class="user-pill">
+        <div class="user-dot" id="role-dot"></div>
+        <span id="user-label">—</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="admin-panel" class="panel">
+    <div class="main-content">
+      <div class="page-title">Class Teacher <span>Dashboard</span></div>
+      <div class="admin-tabs">
+        <button class="admin-tab active" onclick="adminTab('subjects')">📘 Subjects</button>
+        <button class="admin-tab" onclick="adminTab('exams')">📝 Exams</button>
+        <button class="admin-tab" onclick="adminTab('students')">👤 Students</button>
+        <button class="admin-tab" onclick="adminTab('settings')">⚙️ Settings</button>
+      </div>
+
+      <!-- SUBJECTS TAB -->
+      <div id="tab-subjects" class="tab-content active">
+        <div class="form-section">
+          <h3>➕ Add New Subject</h3>
+          <div class="form-row">
+            <div class="field-group">
+              <label>Subject Name</label>
+              <input type="text" id="new-subj-name" placeholder="e.g. Science" />
+            </div>
+            <div class="field-group">
+              <label>Subject Login ID</label>
+              <input type="text" id="new-subj-id" placeholder="e.g. SCI01" />
+            </div>
+            <div class="field-group">
+              <label>Password</label>
+              <input type="password" id="new-subj-pass" placeholder="Set password" />
+            </div>
+            <div class="field-group" style="flex:0;">
+              <label>&nbsp;</label>
+              <button class="btn-primary" onclick="addSubject()">Add Subject</button>
+            </div>
+          </div>
+          <p class="info-note">⚠️ Share the Subject Login ID and Password only with the respective teacher.</p>
+        </div>
+        <div class="cards-grid" id="subjects-grid"></div>
+      </div>
+
+      <!-- EXAMS TAB -->
+      <div id="tab-exams" class="tab-content">
+        <div class="form-section">
+          <h3>📋 Manage Exam Types</h3>
+          <div class="exams-wrap" id="exams-chips"></div>
+          <div class="form-row">
+            <div class="field-group">
+              <label>New Exam Name</label>
+              <input type="text" id="new-exam-name" placeholder="e.g. PT1, Half Yearly, Internal" />
+            </div>
+            <div class="field-group">
+              <label>Max Marks</label>
+              <input type="number" id="new-exam-max" placeholder="e.g. 100" value="100" />
+            </div>
+            <div class="field-group" style="flex:0;">
+              <label>&nbsp;</label>
+              <button class="btn-primary" onclick="addExam()">Add Exam</button>
+            </div>
+          </div>
+          <p class="info-note">These exam types will appear in all subject teacher logins.</p>
+        </div>
+      </div>
+
+      <!-- STUDENTS TAB -->
+      <div id="tab-students" class="tab-content">
+        <div class="form-section">
+          <h3>👤 Add Students</h3>
+          <div class="form-row">
+            <div class="field-group">
+              <label>Student Name</label>
+              <input type="text" id="new-stu-name" placeholder="Full name" />
+            </div>
+            <div class="field-group">
+              <label>Roll Number</label>
+              <input type="text" id="new-stu-roll" placeholder="e.g. 01" />
+            </div>
+            <div class="field-group" style="flex:0;">
+              <label>&nbsp;</label>
+              <button class="btn-primary" onclick="addStudent()">Add Student</button>
+            </div>
+          </div>
+          <p class="info-note">You can also paste a list below (one per line: RollNo, Name)</p>
+          <textarea id="bulk-students" style="width:100%;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;font-family:'Nunito',sans-serif;font-size:14px;height:100px;outline:none;" placeholder="01, Aarav Sharma&#10;02, Priya Patel&#10;03, Rahul Singh"></textarea>
+          <div style="margin-top:10px;"><button class="btn-primary" onclick="bulkAddStudents()">Bulk Add</button></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Roll No</th><th>Student Name</th><th>Actions</th></tr></thead>
+            <tbody id="students-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SETTINGS TAB -->
+      <div id="tab-settings" class="tab-content">
+        <div class="form-section">
+          <h3>🔗 Google Sheets Integration</h3>
+          <p style="font-size:14px;color:var(--muted);margin-bottom:16px;">Connect to Google Sheets so marks are auto-synced when a teacher saves data.</p>
+          <div id="gs-status" class="gs-badge off" style="margin-bottom:16px;">● Not Connected</div>
+          <div class="form-row">
+            <div class="field-group">
+              <label>Google Apps Script Web App URL</label>
+              <input type="text" id="gs-url-input" placeholder="https://script.google.com/macros/s/.../exec" />
+            </div>
+            <div class="field-group" style="flex:0;">
+              <label>&nbsp;</label>
+              <button class="btn-primary" onclick="saveGsUrl()">Save & Test</button>
+            </div>
+          </div>
+          <div style="margin-top:20px;padding:16px;background:var(--bg);border-radius:12px;border:1px solid var(--border);">
+            <p style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent2);">📋 How to set up Google Sheets sync:</p>
+            <ol style="font-size:13px;color:var(--muted);padding-left:18px;line-height:2;">
+              <li>Open <b style="color:var(--text)">script.google.com</b> and create a new project</li>
+              <li>Paste the Apps Script code (click the button below to copy it)</li>
+              <li>Click <b style="color:var(--text)">Deploy → New Deployment → Web App</b></li>
+              <li>Set <b style="color:var(--text)">Execute as: Me</b> and <b style="color:var(--text)">Who has access: Anyone</b></li>
+              <li>Copy the Web App URL and paste it above</li>
+            </ol>
+            <button class="btn-sm" style="margin-top:12px;" onclick="copyAppsScript()">📋 Copy Apps Script Code</button>
+          </div>
+        </div>
+        <div class="form-section">
+          <h3>🔑 Change Admin Password</h3>
+          <div class="form-row">
+            <div class="field-group">
+              <label>New Password</label>
+              <input type="password" id="new-admin-pass" placeholder="Enter new password" />
+            </div>
+            <div class="field-group">
+              <label>Confirm</label>
+              <input type="password" id="confirm-admin-pass" placeholder="Confirm password" />
+            </div>
+            <div class="field-group" style="flex:0;">
+              <label>&nbsp;</label>
+              <button class="btn-primary" onclick="changeAdminPass()">Update</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-section">
+          <h3>🗑️ Danger Zone</h3>
+          <button class="btn-danger" onclick="resetAll()" style="margin-right:10px;">Reset All Data</button>
+          <button class="btn-sm" onclick="exportData()">📤 Export Backup (JSON)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBJECT TEACHER PANEL -->
+  <div id="subject-panel" class="panel">
+    <div class="main-content pb20">
+      <div class="page-title" id="subject-panel-title">Subject: <span>—</span></div>
+      <div style="margin-bottom:20px;font-size:14px;color:var(--muted);">Select an exam below and enter marks for each student.</div>
+      <div class="exam-selector" id="exam-selector"></div>
+      <div id="marks-area"></div>
+    </div>
+    <div class="save-bar">
+      <div class="info" id="save-info">Select an exam to begin entering marks</div>
+      <div class="actions">
+        <button class="btn-save" onclick="saveMarksLocal()">💾 Save</button>
+        <button class="btn-save gs" onclick="saveToGoogleSheets()">📊 Sync to Google Sheets</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Edit Subject -->
+<div class="modal-overlay" id="modal-edit-subj">
+  <div class="modal">
+    <h3>✏️ Edit Subject</h3>
+    <div class="field-group"><label>Subject Name</label><input type="text" id="edit-subj-name"/></div>
+    <div class="field-group"><label>Login ID</label><input type="text" id="edit-subj-id"/></div>
+    <div class="field-group"><label>Password</label><input type="password" id="edit-subj-pass" placeholder="Leave blank to keep current"/></div>
+    <div class="modal-actions">
+      <button class="btn-sm" onclick="closeModal('modal-edit-subj')">Cancel</button>
+      <button class="btn-primary" onclick="saveEditSubject()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+<script>
+const GS_URL = 'https://script.google.com/macros/s/AKfycbzsg8V0wK63Rbopro4FJPmGd34Ofjfhl8RBqdfS-JIKVVIwDJyDd-ViCSZTJKIlZIjR/exec';
+
+// ============================================================
+// STATE
+// ============================================================
+let state = loadState();
+let currentUser = null; // { role: 'admin' | 'subject', subjectId: str }
+let editingSubjectKey = null;
+let currentExam = null;
+let marksBuffer = {}; // { examId: { studentRoll: marks } }
+
+function loadState() {
+  const def = {
+    adminId: 'ABC',
+    adminPass: '123',
+    subjects: {
+      'SCI01': { name: 'Science', id: 'SCI01', pass: 'sci123' },
+      'MATH01': { name: 'Maths', id: 'MATH01', pass: 'math123' },
+      'SST01': { name: 'SST', id: 'SST01', pass: 'sst123' },
+      'ENG01': { name: 'English', id: 'ENG01', pass: 'eng123' },
+      'HIN01': { name: 'Hindi', id: 'HIN01', pass: 'hin123' },
+    },
+    exams: [
+      { id: 'PT1', name: 'PT1', max: 20 },
+      { id: 'HY', name: 'Half Yearly', max: 80 },
+      { id: 'PT2', name: 'PT2', max: 20 },
+      { id: 'INT', name: 'Internal', max: 20 },
+      { id: 'FINAL', name: 'Final', max: 100 },
+    ],
+    students: [
+      { roll: '01', name: 'Aarav Sharma' },
+      { roll: '02', name: 'Priya Patel' },
+      { roll: '03', name: 'Rahul Singh' },
+    ],
+    marks: {}, // { subjectId: { examId: { roll: marks } } }
+    gsUrl: 'https://script.google.com/macros/s/AKfycbzsg8V0wK63Rbopro4FJPmGd34Ofjfhl8RBqdfS-JIKVVIwDJyDd-ViCSZTJKIlZIjR/exec'
+  };
+  try {
+    const saved = localStorage.getItem('edumarks_state');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return def;
+}
+
+function saveState() {
+  localStorage.setItem('edumarks_state', JSON.stringify(state));
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+let loginRole = 'admin';
+
+function switchRole(r) {
+  loginRole = r;
+  document.querySelectorAll('.role-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&r==='admin')||(i===1&&r==='subject')));
+  document.getElementById('subject-select-wrap').style.display = r==='subject' ? 'block' : 'none';
+  document.getElementById('login-error').textContent = '';
+  if (r==='subject') populateSubjectSelect();
+}
+
+function populateSubjectSelect() {
+  const sel = document.getElementById('inp-subject');
+  sel.innerHTML = '';
+  Object.values(state.subjects).forEach(s => {
+    const o = document.createElement('option');
+    o.value = s.id; o.textContent = s.name;
+    sel.appendChild(o);
+  });
+}
+
+function doLogin() {
+  const id = document.getElementById('inp-id').value.trim();
+  const pass = document.getElementById('inp-pass').value;
+  document.getElementById('login-error').textContent = '';
+
+  if (loginRole === 'admin') {
+    if (id === state.adminId && pass === state.adminPass) {
+      currentUser = { role: 'admin' };
+      launchApp();
+    } else {
+      document.getElementById('login-error').textContent = 'Invalid ID or password.';
+    }
+  } else {
+    const subjId = document.getElementById('inp-subject').value;
+    const subj = state.subjects[subjId];
+    if (subj && id === subj.id && pass === subj.pass) {
+      currentUser = { role: 'subject', subjectId: subjId };
+      launchApp();
+    } else {
+      document.getElementById('login-error').textContent = 'Invalid ID or password for this subject.';
+    }
+  }
+}
+
+function launchApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  if (currentUser.role === 'admin') {
+    document.getElementById('role-dot').className = 'user-dot dot-admin';
+    document.getElementById('user-label').textContent = 'Class Teacher';
+    document.getElementById('admin-panel').classList.add('active');
+    document.getElementById('subject-panel').classList.remove('active');
+    renderAdmin();
+  } else {
+    const subj = state.subjects[currentUser.subjectId];
+    document.getElementById('role-dot').className = 'user-dot dot-subject';
+    document.getElementById('user-label').textContent = subj.name + ' Teacher';
+    document.getElementById('subject-panel').classList.add('active');
+    document.getElementById('admin-panel').classList.remove('active');
+    renderSubjectPanel();
+  }
+}
+
+function logout() {
+  currentUser = null; marksBuffer = {}; currentExam = null;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('inp-id').value = '';
+  document.getElementById('inp-pass').value = '';
+  document.getElementById('login-error').textContent = '';
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+}
+
+// ============================================================
+// ADMIN RENDER
+// ============================================================
+function adminTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach((t,i)=>{
+    const tabs = ['subjects','exams','students','settings'];
+    t.classList.toggle('active', tabs[i]===tab);
+  });
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+function renderAdmin() {
+  renderSubjectsGrid();
+  renderExamsChips();
+  renderStudentsTable();
+  renderGsStatus();
+}
+
+function renderSubjectsGrid() {
+  const grid = document.getElementById('subjects-grid');
+  const subjs = Object.values(state.subjects);
+  if (!subjs.length) { grid.innerHTML = '<p style="color:var(--muted);font-size:14px;">No subjects yet. Add one above.</p>'; return; }
+  grid.innerHTML = subjs.map(s => {
+    const examCount = state.marks[s.id] ? Object.keys(state.marks[s.id]).length : 0;
+    return `<div class="subject-card">
+      <div class="s-name">${s.name}</div>
+      <div class="s-id">ID: ${s.id}</div>
+      <div class="s-exams">📝 ${examCount} exam(s) with data</div>
+      <div class="card-actions">
+        <button class="btn-sm" onclick="openEditSubject('${s.id}')">✏️ Edit</button>
+        <button class="btn-sm danger" onclick="deleteSubject('${s.id}')">🗑️ Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderExamsChips() {
+  const wrap = document.getElementById('exams-chips');
+  wrap.innerHTML = state.exams.map(e =>
+    `<span class="exam-chip">${e.name} <span style="color:var(--muted);font-size:11px;">(${e.max})</span>
+     <span class="rm" onclick="removeExam('${e.id}')" title="Remove">×</span></span>`
+  ).join('') || '<p style="color:var(--muted);font-size:13px;margin-bottom:12px;">No exams yet.</p>';
+}
+
+function renderStudentsTable() {
+  const tbody = document.getElementById('students-table-body');
+  tbody.innerHTML = state.students.map((s,i) =>
+    `<tr>
+      <td>${i+1}</td>
+      <td>${s.roll}</td>
+      <td>${s.name}</td>
+      <td><button class="btn-sm danger" onclick="deleteStudent('${s.roll}')">🗑️</button></td>
+    </tr>`
+  ).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No students added yet.</td></tr>';
+}
+
+function renderGsStatus() {
+  const el = document.getElementById('gs-status');
+  el.textContent = '● Connected to Google Sheets';
+  el.className = 'gs-badge';
+  if (state.gsUrl) document.getElementById('gs-url-input').value = state.gsUrl;
+}
+
+// ============================================================
+// ADMIN ACTIONS - SUBJECTS
+// ============================================================
+function addSubject() {
+  const name = document.getElementById('new-subj-name').value.trim();
+  const id = document.getElementById('new-subj-id').value.trim().toUpperCase();
+  const pass = document.getElementById('new-subj-pass').value;
+  if (!name||!id||!pass) { toast('Fill all fields', 'error'); return; }
+  if (state.subjects[id]) { toast('Subject ID already exists', 'error'); return; }
+  state.subjects[id] = { name, id, pass };
+  saveState();
+  document.getElementById('new-subj-name').value = '';
+  document.getElementById('new-subj-id').value = '';
+  document.getElementById('new-subj-pass').value = '';
+  renderSubjectsGrid();
+  toast(`Subject "${name}" added ✓`,'success');
+}
+
+function deleteSubject(id) {
+  if (!confirm(`Delete subject "${state.subjects[id].name}"? All marks data will be lost.`)) return;
+  delete state.subjects[id];
+  delete state.marks[id];
+  saveState();
+  renderSubjectsGrid();
+  toast('Subject deleted','success');
+}
+
+function openEditSubject(id) {
+  editingSubjectKey = id;
+  const s = state.subjects[id];
+  document.getElementById('edit-subj-name').value = s.name;
+  document.getElementById('edit-subj-id').value = s.id;
+  document.getElementById('edit-subj-pass').value = '';
+  document.getElementById('modal-edit-subj').classList.add('open');
+}
+
+function saveEditSubject() {
+  const name = document.getElementById('edit-subj-name').value.trim();
+  const id = document.getElementById('edit-subj-id').value.trim().toUpperCase();
+  const pass = document.getElementById('edit-subj-pass').value;
+  if (!name||!id) { toast('Name and ID required','error'); return; }
+  const s = state.subjects[editingSubjectKey];
+  if (id !== editingSubjectKey) {
+    state.subjects[id] = { ...s, name, id, pass: pass||s.pass };
+    if (state.marks[editingSubjectKey]) {
+      state.marks[id] = state.marks[editingSubjectKey];
+      delete state.marks[editingSubjectKey];
+    }
+    delete state.subjects[editingSubjectKey];
+  } else {
+    state.subjects[id] = { ...s, name, id, pass: pass||s.pass };
+  }
+  saveState();
+  closeModal('modal-edit-subj');
+  renderSubjectsGrid();
+  toast('Subject updated ✓','success');
+}
+
+// ============================================================
+// ADMIN ACTIONS - EXAMS
+// ============================================================
+function addExam() {
+  const name = document.getElementById('new-exam-name').value.trim();
+  const max = parseInt(document.getElementById('new-exam-max').value)||100;
+  if (!name) { toast('Enter exam name','error'); return; }
+  const id = name.replace(/\s+/g,'_').toUpperCase();
+  if (state.exams.find(e=>e.id===id)) { toast('Exam already exists','error'); return; }
+  state.exams.push({ id, name, max });
+  saveState();
+  document.getElementById('new-exam-name').value = '';
+  document.getElementById('new-exam-max').value = '100';
+  renderExamsChips();
+  toast(`Exam "${name}" added ✓`,'success');
+}
+
+function removeExam(id) {
+  state.exams = state.exams.filter(e=>e.id!==id);
+  saveState();
+  renderExamsChips();
+  toast('Exam removed','success');
+}
+
+// ============================================================
+// ADMIN ACTIONS - STUDENTS
+// ============================================================
+function addStudent() {
+  const name = document.getElementById('new-stu-name').value.trim();
+  const roll = document.getElementById('new-stu-roll').value.trim();
+  if (!name||!roll) { toast('Fill all fields','error'); return; }
+  if (state.students.find(s=>s.roll===roll)) { toast('Roll number exists','error'); return; }
+  state.students.push({ roll, name });
+  saveState();
+  document.getElementById('new-stu-name').value = '';
+  document.getElementById('new-stu-roll').value = '';
+  renderStudentsTable();
+  toast(`Student "${name}" added ✓`,'success');
+}
+
+function bulkAddStudents() {
+  const lines = document.getElementById('bulk-students').value.split('\n').filter(l=>l.trim());
+  let added = 0;
+  lines.forEach(line => {
+    const parts = line.split(',');
+    if (parts.length >= 2) {
+      const roll = parts[0].trim();
+      const name = parts.slice(1).join(',').trim();
+      if (roll && name && !state.students.find(s=>s.roll===roll)) {
+        state.students.push({ roll, name });
+        added++;
+      }
+    }
+  });
+  saveState();
+  document.getElementById('bulk-students').value = '';
+  renderStudentsTable();
+  toast(`${added} student(s) added ✓`,'success');
+}
+
+function deleteStudent(roll) {
+  state.students = state.students.filter(s=>s.roll!==roll);
+  saveState();
+  renderStudentsTable();
+  toast('Student removed','success');
+}
+
+// ============================================================
+// ADMIN ACTIONS - SETTINGS
+// ============================================================
+function saveGsUrl() {
+  const url = document.getElementById('gs-url-input').value.trim();
+  if (!url) { toast('Enter URL first','error'); return; }
+  state.gsUrl = url;
+  saveState();
+  renderGsStatus();
+  toast('Google Sheets URL saved ✓','success');
+}
+
+function changeAdminPass() {
+  const np = document.getElementById('new-admin-pass').value;
+  const cp = document.getElementById('confirm-admin-pass').value;
+  if (!np) { toast('Enter new password','error'); return; }
+  if (np !== cp) { toast('Passwords do not match','error'); return; }
+  state.adminPass = np;
+  saveState();
+  document.getElementById('new-admin-pass').value = '';
+  document.getElementById('confirm-admin-pass').value = '';
+  toast('Password updated ✓','success');
+}
+
+function resetAll() {
+  if (!confirm('This will delete ALL data including subjects, students, and marks. Are you sure?')) return;
+  localStorage.removeItem('edumarks_state');
+  location.reload();
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'edumarks_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+function copyAppsScript() {
+  const code = `// Google Apps Script - Paste this in script.google.com
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetName = data.subject + '_' + data.exam;
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+      sheet.appendRow(['Roll No', 'Student Name', 'Marks', 'Max Marks', 'Updated At']);
+    }
+    // Clear old data (except header)
+    if (sheet.getLastRow() > 1) sheet.getRange(2, 1, sheet.getLastRow()-1, 5).clearContent();
+    const rows = data.marks.map(m => [m.roll, m.name, m.marks, data.max, new Date().toLocaleString()]);
+    if (rows.length) sheet.getRange(2, 1, rows.length, 5).setValues(rows);
+    return ContentService.createTextOutput(JSON.stringify({status:'ok'})).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({status:'error', message:err.toString()})).setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+  navigator.clipboard.writeText(code).then(()=>toast('Apps Script code copied to clipboard ✓','success'));
+}
+
+// ============================================================
+// SUBJECT TEACHER PANEL
+// ============================================================
+function renderSubjectPanel() {
+  const subj = state.subjects[currentUser.subjectId];
+  document.getElementById('subject-panel-title').innerHTML = `Subject: <span>${subj.name}</span>`;
+
+  const sel = document.getElementById('exam-selector');
+  sel.innerHTML = state.exams.map(e =>
+    `<button class="exam-btn" onclick="selectExam('${e.id}')">${e.name}<br><small style="font-weight:400;font-size:11px;">(Max: ${e.max})</small></button>`
+  ).join('');
+  document.getElementById('marks-area').innerHTML = `<p style="color:var(--muted);font-size:14px;margin-top:20px;">👆 Select an exam above to enter marks.</p>`;
+  document.getElementById('save-info').textContent = 'Select an exam to begin';
+}
+
+function selectExam(examId) {
+  currentExam = examId;
+  document.querySelectorAll('.exam-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  const exam = state.exams.find(e=>e.id===examId);
+  const subjId = currentUser.subjectId;
+
+  if (!marksBuffer[examId]) marksBuffer[examId] = {};
+  // Load saved marks into buffer
+  const saved = (state.marks[subjId]||{})[examId]||{};
+  state.students.forEach(s => {
+    if (marksBuffer[examId][s.roll] === undefined)
+      marksBuffer[examId][s.roll] = saved[s.roll] !== undefined ? saved[s.roll] : '';
+  });
+
+  renderMarksTable(examId, exam);
+  document.getElementById('save-info').textContent = `Editing: ${exam.name} (Max: ${exam.max} marks)`;
+}
+
+function renderMarksTable(examId, exam) {
+  const area = document.getElementById('marks-area');
+  if (!state.students.length) {
+    area.innerHTML = '<p style="color:var(--muted);font-size:14px;margin-top:20px;">No students found. Ask the class teacher to add students first.</p>';
+    return;
+  }
+  area.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Roll No</th><th>Student Name</th><th>Marks (/${exam.max})</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${state.students.map((s,i)=>{
+            const v = marksBuffer[examId][s.roll];
+            return `<tr>
+              <td>${i+1}</td>
+              <td>${s.roll}</td>
+              <td>${s.name}</td>
+              <td><input type="number" min="0" max="${exam.max}" value="${v}" placeholder="—"
+                onchange="updateMark('${examId}','${s.roll}',this.value,'${exam.max}')"
+                oninput="updateMark('${examId}','${s.roll}',this.value,'${exam.max}')" /></td>
+              <td id="status-${examId}-${s.roll}">${getStatusBadge(v,exam.max)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function getStatusBadge(v, max) {
+  if (v===''||v===undefined||v===null) return '<span style="color:var(--muted);font-size:12px;">—</span>';
+  const pct = (parseFloat(v)/parseFloat(max))*100;
+  let color = pct>=75?'var(--accent3)':pct>=45?'var(--warn)':'var(--danger)';
+  let label = pct>=75?'Good':pct>=45?'Average':'Low';
+  return `<span style="color:${color};font-size:12px;font-weight:700;">${label}</span>`;
+}
+
+function updateMark(examId, roll, value, max) {
+  if (value > parseFloat(max)) value = max;
+  if (value < 0) value = 0;
+  marksBuffer[examId][roll] = value;
+  const statusEl = document.getElementById(`status-${examId}-${roll}`);
+  if (statusEl) statusEl.innerHTML = getStatusBadge(value, max);
+}
+
+function saveMarksLocal() {
+  if (!currentExam) { toast('Select an exam first','error'); return; }
+  const subjId = currentUser.subjectId;
+  if (!state.marks[subjId]) state.marks[subjId] = {};
+  state.marks[subjId][currentExam] = { ...marksBuffer[currentExam] };
+  saveState();
+  toast('Marks saved locally ✓','success');
+}
+
+async function saveToGoogleSheets() {
+  if (!currentExam) { toast('Select an exam first','error'); return; }
+  saveMarksLocal();
+  const exam = state.exams.find(e=>e.id===currentExam);
+  const subj = state.subjects[currentUser.subjectId];
+  const marks = state.students.map(s => ({
+    roll: s.roll,
+    name: s.name,
+    marks: marksBuffer[currentExam][s.roll] !== '' ? marksBuffer[currentExam][s.roll] : 'AB'
+  }));
+  const url = GS_URL || state.gsUrl;
+  if (!url) { toast('Google Sheets not configured. Ask admin to set it up.','error'); return; }
+  try {
+    toast('Syncing to Google Sheets...','');
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify({ subject: subj.name, exam: exam.name, max: exam.max, marks }),
+    });
+    const data = await res.json();
+    if (data.status === 'ok') toast('Synced to Google Sheets ✓','success');
+    else throw new Error(data.message||'Unknown error');
+  } catch(err) {
+    toast('Sync failed: ' + err.message,'error');
+  }
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+let toastTimer;
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  const icon = document.getElementById('toast-icon');
+  const msgEl = document.getElementById('toast-msg');
+  icon.textContent = type==='error'?'✕':type===''?'⏳':'✓';
+  msgEl.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
