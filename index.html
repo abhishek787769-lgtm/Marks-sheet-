@@ -548,31 +548,42 @@ let marksBuffer = {};
 // ============================================================
 // GS API CALLS
 // ============================================================
+const SHEET_ID = '1z7b4dzFahmmRvl1JKO2i0dP09zMaC1GDFvZcSlSBIyE';
+
 async function gsPost(payload) {
   const res = await fetch(GS_URL, { method: 'POST', body: JSON.stringify(payload) });
   return await res.json();
 }
 
-async function gsGet(action) {
-  const res = await fetch(GS_URL + '?action=' + action);
-  return await res.json();
-}
-
-// ============================================================
-// FETCH CONFIG FROM GOOGLE SHEETS ON LOGIN
-// ============================================================
+// Read Config sheet as public CSV — no CORS issue!
 async function fetchConfigFromSheet() {
   showLoginLoading(true);
   try {
-    const data = await gsGet('getConfig');
-    if (data.status === 'ok') {
-      // Merge fetched config into state
-      if (data.adminId)   state.adminId   = data.adminId;
-      if (data.adminPass) state.adminPass = data.adminPass;
-      if (data.subjects)  state.subjects  = data.subjects;
-      if (data.exams)     state.exams     = data.exams;
-      if (data.students)  state.students  = data.students;
-    }
+    // Fetch Config sheet (gid=0 is first sheet) as CSV
+    const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Config`;
+    const res = await fetch(csvUrl);
+    if (!res.ok) throw new Error('Sheet not reachable');
+    const csv = await res.text();
+    const rows = csv.trim().split('\n').slice(1); // skip header
+    const config = {};
+    rows.forEach(row => {
+      // CSV row: "KEY","VALUE"
+      const match = row.match(/^"([^"]+)","(.*)"$/s);
+      if (match) {
+        const key = match[1].trim();
+        let val = match[2].trim();
+        // Unescape CSV double-quotes
+        val = val.replace(/""/g, '"');
+        try { config[key] = JSON.parse(val); }
+        catch(e) { config[key] = val; }
+      }
+    });
+    if (config.adminId)   state.adminId   = config.adminId;
+    if (config.adminPass) state.adminPass = config.adminPass;
+    if (config.subjects)  state.subjects  = config.subjects;
+    if (config.exams)     state.exams     = config.exams;
+    if (config.students)  state.students  = config.students;
+    console.log('Config fetched from Sheet ✓');
   } catch(e) {
     console.warn('Could not fetch from Sheet, using cache:', e);
   }
@@ -918,45 +929,8 @@ function getConfigPayload() {
 function copyAppsScript() {
   const code = `// =====================================================
 // EduMarks Pro — Google Apps Script
-// TWO functions: doGet (fetch config) + doPost (save)
+// doPost only — Config is read via public CSV (no CORS issue)
 // =====================================================
-
-function doGet(e) {
-  const action = e.parameter.action;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  if (action === 'getConfig') {
-    // Read Config sheet
-    let sheet = ss.getSheetByName('Config');
-    if (!sheet) {
-      // First time: create Config sheet with defaults
-      sheet = ss.insertSheet('Config');
-      sheet.getRange('A1').setValue('KEY');
-      sheet.getRange('B1').setValue('VALUE');
-      sheet.getRange('A1:B1').setFontWeight('bold');
-      sheet.getRange('A2').setValue('adminId');   sheet.getRange('B2').setValue('ABC');
-      sheet.getRange('A3').setValue('adminPass'); sheet.getRange('B3').setValue('123');
-      sheet.getRange('A4').setValue('subjects');  sheet.getRange('B4').setValue('{}');
-      sheet.getRange('A5').setValue('exams');     sheet.getRange('B5').setValue('[]');
-      sheet.getRange('A6').setValue('students');  sheet.getRange('B6').setValue('[]');
-    }
-    const data = sheet.getDataRange().getValues();
-    const config = {};
-    data.slice(1).forEach(row => {
-      if (row[0]) {
-        try { config[row[0]] = JSON.parse(row[1]); }
-        catch(e) { config[row[0]] = row[1]; }
-      }
-    });
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: 'ok', ...config }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  return ContentService
-    .createTextOutput(JSON.stringify({ status: 'error', message: 'Unknown action' }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
 
 function doPost(e) {
   try {
