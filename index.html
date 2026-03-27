@@ -444,30 +444,8 @@
       <div id="tab-settings" class="tab-content">
         <div class="form-section">
           <h3>🔗 Google Sheets Integration</h3>
-          <p style="font-size:14px;color:var(--muted);margin-bottom:16px;">Connect to Google Sheets so marks are auto-synced when a teacher saves data.</p>
-          <div id="gs-status" class="gs-badge off" style="margin-bottom:16px;">● Not Connected</div>
-          <div class="form-row">
-            <div class="field-group">
-              <label>Google Apps Script Web App URL</label>
-              <input type="text" id="gs-url-input" placeholder="https://script.google.com/macros/s/.../exec" />
-            </div>
-            <div class="field-group" style="flex:0;">
-              <label>&nbsp;</label>
-              <button class="btn-primary" onclick="saveGsUrl()">Save & Test</button>
-            </div>
-          </div>
-          <div style="margin-top:20px;padding:16px;background:var(--bg);border-radius:12px;border:1px solid var(--border);">
-            <p style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--accent2);">📋 How to set up Google Sheets sync:</p>
-            <p style="font-size:12px;color:var(--accent3);margin-bottom:10px;background:rgba(63,185,80,0.07);border-radius:8px;padding:8px 12px;">📊 <b>New Sheet Structure:</b> One sheet per exam (PT1, PT2, HYE…). Columns: S.No | Roll No | Name | Science (Max:30) | Maths (Max:30) | … Each subject teacher's sync adds their column automatically.</p>
-            <ol style="font-size:13px;color:var(--muted);padding-left:18px;line-height:2;">
-              <li>Open <b style="color:var(--text)">script.google.com</b> and create a new project linked to your Google Sheet</li>
-              <li>Paste the Apps Script code (click the button below to copy it)</li>
-              <li>Click <b style="color:var(--text)">Deploy → New Deployment → Web App</b></li>
-              <li>Set <b style="color:var(--text)">Execute as: Me</b> and <b style="color:var(--text)">Who has access: Anyone</b></li>
-              <li>Copy the Web App URL and paste it above</li>
-            </ol>
-            <button class="btn-sm" style="margin-top:12px;" onclick="copyAppsScript()">📋 Copy Apps Script Code</button>
-          </div>
+          <div id="gs-status" class="gs-badge" style="margin-bottom:8px;">● Connected (Live Sync Active)</div>
+          <p style="font-size:13px;color:var(--muted);margin-top:8px;">Data is automatically synced to Google Sheets. No setup required.</p>
         </div>
         <div class="form-section">
           <h3>🔑 Change Admin Password</h3>
@@ -712,7 +690,6 @@ function renderAdmin() {
   renderSubjectsGrid();
   renderExamsChips();
   renderStudentsTable();
-  renderGsStatus();
 }
 
 function renderSubjectsGrid() {
@@ -748,11 +725,6 @@ function renderStudentsTable() {
   ).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No students added yet.</td></tr>';
 }
 
-function renderGsStatus() {
-  const el = document.getElementById('gs-status');
-  el.textContent = '● Connected to Google Sheets (Live Sync)';
-  el.className = 'gs-badge';
-}
 
 // ============================================================
 // ADMIN ACTIONS — SUBJECTS (push to GS immediately)
