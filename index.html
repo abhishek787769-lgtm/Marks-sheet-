@@ -540,6 +540,13 @@ let state = {
   adminId: 'ABC', adminPass: '123',
   subjects: {}, exams: [], students: [], marks: {}
 };
+
+function ensureState() {
+  if (!state.subjects || typeof state.subjects !== 'object') state.subjects = {};
+  if (!Array.isArray(state.exams))    state.exams    = [];
+  if (!Array.isArray(state.students)) state.students = [];
+  if (!state.marks)                   state.marks    = {};
+}
 let currentUser = null;
 let editingSubjectKey = null;
 let currentExam = null;
@@ -551,8 +558,14 @@ let marksBuffer = {};
 const SHEET_ID = '1z7b4dzFahmmRvl1JKO2i0dP09zMaC1GDFvZcSlSBIyE';
 
 async function gsPost(payload) {
-  const res = await fetch(GS_URL, { method: 'POST', body: JSON.stringify(payload) });
-  return await res.json();
+  const res = await fetch(GS_URL, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'text/plain' } // avoid preflight CORS
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch(e) { return { status: 'error', message: 'Invalid JSON: ' + text.slice(0,100) }; }
 }
 
 // Read Config sheet as public CSV — no CORS issue!
@@ -580,10 +593,11 @@ async function fetchConfigFromSheet() {
     });
     if (config.adminId)   state.adminId   = config.adminId;
     if (config.adminPass) state.adminPass = config.adminPass;
-    if (config.subjects)  state.subjects  = config.subjects;
-    if (config.exams)     state.exams     = config.exams;
-    if (config.students)  state.students  = config.students;
-    console.log('Config fetched from Sheet ✓');
+    if (config.subjects && typeof config.subjects === 'object') state.subjects = config.subjects;
+    if (Array.isArray(config.exams))    state.exams    = config.exams;
+    if (Array.isArray(config.students)) state.students = config.students;
+    ensureState();
+    console.log('Config fetched from Sheet ✓', state);
   } catch(e) {
     console.warn('Could not fetch from Sheet, using cache:', e);
   }
@@ -917,12 +931,13 @@ function exportData() {
 
 // Config payload sent to Sheet
 function getConfigPayload() {
+  ensureState();
   return {
-    adminId:   state.adminId,
-    adminPass: state.adminPass,
-    subjects:  state.subjects,
-    exams:     state.exams,
-    students:  state.students
+    adminId:   state.adminId   || 'ABC',
+    adminPass: state.adminPass || '123',
+    subjects:  state.subjects  || {},
+    exams:     state.exams     || [],
+    students:  state.students  || []
   };
 }
 
