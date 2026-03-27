@@ -534,49 +534,61 @@
 const GS_URL = 'https://script.google.com/macros/s/AKfycbwVQ-h0hr5N25TorwnEArDi502vbcdgGHCkF654Zuq0cQSuWXZJ83CiIBgWMpdpIZa-aA/exec';
 
 // ============================================================
-// STATE
+// STATE — Google Sheets is MASTER. localStorage = cache only.
 // ============================================================
-let state = loadState();
-let currentUser = null; // { role: 'admin' | 'subject', subjectId: str }
+let state = {
+  adminId: 'ABC', adminPass: '123',
+  subjects: {}, exams: [], students: [], marks: {}
+};
+let currentUser = null;
 let editingSubjectKey = null;
 let currentExam = null;
-let marksBuffer = {}; // { examId: { studentRoll: marks } }
+let marksBuffer = {};
 
-function loadState() {
-  const def = {
-    adminId: 'ABC',
-    adminPass: '123',
-    subjects: {
-      'SCI01': { name: 'Science', id: 'SCI01', pass: 'sci123' },
-      'MATH01': { name: 'Maths', id: 'MATH01', pass: 'math123' },
-      'SST01': { name: 'SST', id: 'SST01', pass: 'sst123' },
-      'ENG01': { name: 'English', id: 'ENG01', pass: 'eng123' },
-      'HIN01': { name: 'Hindi', id: 'HIN01', pass: 'hin123' },
-    },
-    exams: [
-      { id: 'PT1', name: 'PT1', max: 20 },
-      { id: 'HY', name: 'Half Yearly', max: 80 },
-      { id: 'PT2', name: 'PT2', max: 20 },
-      { id: 'INT', name: 'Internal', max: 20 },
-      { id: 'FINAL', name: 'Final', max: 100 },
-    ],
-    students: [
-      { roll: '01', name: 'Aarav Sharma' },
-      { roll: '02', name: 'Priya Patel' },
-      { roll: '03', name: 'Rahul Singh' },
-    ],
-    marks: {}, // { subjectId: { examId: { roll: marks } } }
-    gsUrl: 'https://script.google.com/macros/s/AKfycbwVQ-h0hr5N25TorwnEArDi502vbcdgGHCkF654Zuq0cQSuWXZJ83CiIBgWMpdpIZa-aA/exec'
-  };
-  try {
-    const saved = localStorage.getItem('edumarks_state');
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  return def;
+// ============================================================
+// GS API CALLS
+// ============================================================
+async function gsPost(payload) {
+  const res = await fetch(GS_URL, { method: 'POST', body: JSON.stringify(payload) });
+  return await res.json();
 }
 
-function saveState() {
-  localStorage.setItem('edumarks_state', JSON.stringify(state));
+async function gsGet(action) {
+  const res = await fetch(GS_URL + '?action=' + action);
+  return await res.json();
+}
+
+// ============================================================
+// FETCH CONFIG FROM GOOGLE SHEETS ON LOGIN
+// ============================================================
+async function fetchConfigFromSheet() {
+  showLoginLoading(true);
+  try {
+    const data = await gsGet('getConfig');
+    if (data.status === 'ok') {
+      // Merge fetched config into state
+      if (data.adminId)   state.adminId   = data.adminId;
+      if (data.adminPass) state.adminPass = data.adminPass;
+      if (data.subjects)  state.subjects  = data.subjects;
+      if (data.exams)     state.exams     = data.exams;
+      if (data.students)  state.students  = data.students;
+    }
+  } catch(e) {
+    console.warn('Could not fetch from Sheet, using cache:', e);
+  }
+  showLoginLoading(false);
+}
+
+function showLoginLoading(show) {
+  let el = document.getElementById('login-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'login-loading';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(13,17,23,0.85);display:flex;align-items:center;justify-content:center;z-index:9999;font-size:15px;font-weight:700;color:#58a6ff;gap:12px;flex-direction:column;';
+    el.innerHTML = '<div style="font-size:32px;">☁️</div><div>Fetching data from Google Sheets...</div><div style="font-size:12px;color:#8b949e;">Please wait</div>';
+    document.body.appendChild(el);
+  }
+  el.style.display = show ? 'flex' : 'none';
 }
 
 // ============================================================
@@ -586,7 +598,7 @@ let loginRole = 'admin';
 
 function switchRole(r) {
   loginRole = r;
-  document.querySelectorAll('.role-tab').forEach((t,i)=>t.classList.toggle('active', (i===0&&r==='admin')||(i===1&&r==='subject')));
+  document.querySelectorAll('.role-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&r==='admin')||(i===1&&r==='subject')));
   document.getElementById('subject-select-wrap').style.display = r==='subject' ? 'block' : 'none';
   document.getElementById('login-error').textContent = '';
   if (r==='subject') populateSubjectSelect();
@@ -602,10 +614,13 @@ function populateSubjectSelect() {
   });
 }
 
-function doLogin() {
-  const id = document.getElementById('inp-id').value.trim();
+async function doLogin() {
+  const id   = document.getElementById('inp-id').value.trim();
   const pass = document.getElementById('inp-pass').value;
   document.getElementById('login-error').textContent = '';
+
+  // Fetch latest config from Google Sheets before every login
+  await fetchConfigFromSheet();
 
   if (loginRole === 'admin') {
     if (id === state.adminId && pass === state.adminPass) {
@@ -615,8 +630,9 @@ function doLogin() {
       document.getElementById('login-error').textContent = 'Invalid ID or password.';
     }
   } else {
+    populateSubjectSelect();
     const subjId = document.getElementById('inp-subject').value;
-    const subj = state.subjects[subjId];
+    const subj   = state.subjects[subjId];
     if (subj && id === subj.id && pass === subj.pass) {
       currentUser = { role: 'subject', subjectId: subjId };
       launchApp();
@@ -629,7 +645,6 @@ function doLogin() {
 function launchApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
-
   if (currentUser.role === 'admin') {
     document.getElementById('role-dot').className = 'user-dot dot-admin';
     document.getElementById('user-label').textContent = 'Class Teacher';
@@ -679,18 +694,15 @@ function renderSubjectsGrid() {
   const grid = document.getElementById('subjects-grid');
   const subjs = Object.values(state.subjects);
   if (!subjs.length) { grid.innerHTML = '<p style="color:var(--muted);font-size:14px;">No subjects yet. Add one above.</p>'; return; }
-  grid.innerHTML = subjs.map(s => {
-    const examCount = state.marks[s.id] ? Object.keys(state.marks[s.id]).length : 0;
-    return `<div class="subject-card">
+  grid.innerHTML = subjs.map(s => `
+    <div class="subject-card">
       <div class="s-name">${s.name}</div>
       <div class="s-id">ID: ${s.id}</div>
-      <div class="s-exams">📝 ${examCount} exam(s) with data</div>
       <div class="card-actions">
         <button class="btn-sm" onclick="openEditSubject('${s.id}')">✏️ Edit</button>
         <button class="btn-sm danger" onclick="deleteSubject('${s.id}')">🗑️ Delete</button>
       </div>
-    </div>`;
-  }).join('');
+    </div>`).join('');
 }
 
 function renderExamsChips() {
@@ -703,11 +715,9 @@ function renderExamsChips() {
 
 function renderStudentsTable() {
   const tbody = document.getElementById('students-table-body');
-  tbody.innerHTML = state.students.map((s,i) =>
-    `<tr>
-      <td>${i+1}</td>
-      <td>${s.roll}</td>
-      <td>${s.name}</td>
+  tbody.innerHTML = state.students.map((s,i) => `
+    <tr>
+      <td>${i+1}</td><td>${s.roll}</td><td>${s.name}</td>
       <td><button class="btn-sm danger" onclick="deleteStudent('${s.roll}')">🗑️</button></td>
     </tr>`
   ).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:20px;">No students added yet.</td></tr>';
@@ -715,110 +725,122 @@ function renderStudentsTable() {
 
 function renderGsStatus() {
   const el = document.getElementById('gs-status');
-  el.textContent = '● Connected to Google Sheets';
+  el.textContent = '● Connected to Google Sheets (Live Sync)';
   el.className = 'gs-badge';
-  if (state.gsUrl) document.getElementById('gs-url-input').value = state.gsUrl;
 }
 
 // ============================================================
-// ADMIN ACTIONS - SUBJECTS
+// ADMIN ACTIONS — SUBJECTS (push to GS immediately)
 // ============================================================
-function addSubject() {
+async function addSubject() {
   const name = document.getElementById('new-subj-name').value.trim();
-  const id = document.getElementById('new-subj-id').value.trim().toUpperCase();
+  const id   = document.getElementById('new-subj-id').value.trim().toUpperCase();
   const pass = document.getElementById('new-subj-pass').value;
-  if (!name||!id||!pass) { toast('Fill all fields', 'error'); return; }
-  if (state.subjects[id]) { toast('Subject ID already exists', 'error'); return; }
+  if (!name||!id||!pass) { toast('Fill all fields','error'); return; }
+  if (state.subjects[id]) { toast('Subject ID already exists','error'); return; }
   state.subjects[id] = { name, id, pass };
-  saveState();
   document.getElementById('new-subj-name').value = '';
   document.getElementById('new-subj-id').value = '';
   document.getElementById('new-subj-pass').value = '';
   renderSubjectsGrid();
-  toast(`Subject "${name}" added ✓`,'success');
+  toast('Saving to Google Sheets...','');
+  try {
+    const r = await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    if (r.status === 'ok') toast(`Subject "${name}" added & saved ✓`,'success');
+    else throw new Error(r.message);
+  } catch(e) { toast('Saved locally, Sheet sync failed: '+e.message,'error'); }
 }
 
-function deleteSubject(id) {
-  if (!confirm(`Delete subject "${state.subjects[id].name}"? All marks data will be lost.`)) return;
+async function deleteSubject(id) {
+  if (!confirm(`Delete subject "${state.subjects[id].name}"?`)) return;
   delete state.subjects[id];
-  delete state.marks[id];
-  saveState();
   renderSubjectsGrid();
-  toast('Subject deleted','success');
+  try {
+    await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    toast('Subject deleted ✓','success');
+  } catch(e) { toast('Deleted locally, Sheet sync failed','error'); }
 }
 
 function openEditSubject(id) {
   editingSubjectKey = id;
   const s = state.subjects[id];
   document.getElementById('edit-subj-name').value = s.name;
-  document.getElementById('edit-subj-id').value = s.id;
+  document.getElementById('edit-subj-id').value   = s.id;
   document.getElementById('edit-subj-pass').value = '';
   document.getElementById('modal-edit-subj').classList.add('open');
 }
 
-function saveEditSubject() {
+async function saveEditSubject() {
   const name = document.getElementById('edit-subj-name').value.trim();
-  const id = document.getElementById('edit-subj-id').value.trim().toUpperCase();
+  const id   = document.getElementById('edit-subj-id').value.trim().toUpperCase();
   const pass = document.getElementById('edit-subj-pass').value;
   if (!name||!id) { toast('Name and ID required','error'); return; }
   const s = state.subjects[editingSubjectKey];
   if (id !== editingSubjectKey) {
     state.subjects[id] = { ...s, name, id, pass: pass||s.pass };
-    if (state.marks[editingSubjectKey]) {
-      state.marks[id] = state.marks[editingSubjectKey];
-      delete state.marks[editingSubjectKey];
-    }
     delete state.subjects[editingSubjectKey];
   } else {
     state.subjects[id] = { ...s, name, id, pass: pass||s.pass };
   }
-  saveState();
   closeModal('modal-edit-subj');
   renderSubjectsGrid();
-  toast('Subject updated ✓','success');
+  try {
+    await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    toast('Subject updated ✓','success');
+  } catch(e) { toast('Updated locally, Sheet sync failed','error'); }
 }
 
 // ============================================================
-// ADMIN ACTIONS - EXAMS
+// ADMIN ACTIONS — EXAMS (push to GS immediately)
 // ============================================================
-function addExam() {
+async function addExam() {
   const name = document.getElementById('new-exam-name').value.trim();
-  const max = parseInt(document.getElementById('new-exam-max').value)||100;
+  const max  = parseInt(document.getElementById('new-exam-max').value)||100;
   if (!name) { toast('Enter exam name','error'); return; }
   const id = name.replace(/\s+/g,'_').toUpperCase();
   if (state.exams.find(e=>e.id===id)) { toast('Exam already exists','error'); return; }
   state.exams.push({ id, name, max });
-  saveState();
   document.getElementById('new-exam-name').value = '';
-  document.getElementById('new-exam-max').value = '100';
+  document.getElementById('new-exam-max').value  = '100';
   renderExamsChips();
-  toast(`Exam "${name}" added ✓`,'success');
+  toast('Saving to Google Sheets...','');
+  try {
+    const r = await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    if (r.status === 'ok') toast(`Exam "${name}" added & saved ✓`,'success');
+    else throw new Error(r.message);
+  } catch(e) { toast('Saved locally, Sheet sync failed: '+e.message,'error'); }
 }
 
-function removeExam(id) {
+async function removeExam(id) {
   state.exams = state.exams.filter(e=>e.id!==id);
-  saveState();
   renderExamsChips();
-  toast('Exam removed','success');
+  try {
+    await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    toast('Exam removed ✓','success');
+  } catch(e) { toast('Removed locally, Sheet sync failed','error'); }
 }
 
 // ============================================================
-// ADMIN ACTIONS - STUDENTS
+// ADMIN ACTIONS — STUDENTS (push to GS immediately)
 // ============================================================
-function addStudent() {
+async function addStudent() {
   const name = document.getElementById('new-stu-name').value.trim();
   const roll = document.getElementById('new-stu-roll').value.trim();
   if (!name||!roll) { toast('Fill all fields','error'); return; }
   if (state.students.find(s=>s.roll===roll)) { toast('Roll number exists','error'); return; }
   state.students.push({ roll, name });
-  saveState();
   document.getElementById('new-stu-name').value = '';
   document.getElementById('new-stu-roll').value = '';
   renderStudentsTable();
-  toast(`Student "${name}" added ✓`,'success');
+  toast('Saving to Google Sheets...','');
+  try {
+    const r = await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    if (r.status === 'ok') toast(`Student "${name}" added & saved ✓`,'success');
+    else throw new Error(r.message);
+  } catch(e) { toast('Saved locally, Sheet sync failed: '+e.message,'error'); }
 }
 
-function bulkAddStudents() {
+async function bulkAddStudents() {
   const lines = document.getElementById('bulk-students').value.split('\n').filter(l=>l.trim());
   let added = 0;
   lines.forEach(line => {
@@ -832,129 +854,196 @@ function bulkAddStudents() {
       }
     }
   });
-  saveState();
   document.getElementById('bulk-students').value = '';
   renderStudentsTable();
-  toast(`${added} student(s) added ✓`,'success');
+  toast('Saving to Google Sheets...','');
+  try {
+    const r = await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    if (r.status === 'ok') toast(`${added} student(s) added & saved ✓`,'success');
+    else throw new Error(r.message);
+  } catch(e) { toast('Saved locally, Sheet sync failed: '+e.message,'error'); }
 }
 
-function deleteStudent(roll) {
+async function deleteStudent(roll) {
   state.students = state.students.filter(s=>s.roll!==roll);
-  saveState();
   renderStudentsTable();
-  toast('Student removed','success');
+  try {
+    await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    toast('Student removed ✓','success');
+  } catch(e) { toast('Removed locally, Sheet sync failed','error'); }
 }
 
 // ============================================================
-// ADMIN ACTIONS - SETTINGS
+// SETTINGS
 // ============================================================
-function saveGsUrl() {
-  const url = document.getElementById('gs-url-input').value.trim();
-  if (!url) { toast('Enter URL first','error'); return; }
-  state.gsUrl = url;
-  saveState();
-  renderGsStatus();
-  toast('Google Sheets URL saved ✓','success');
-}
-
-function changeAdminPass() {
+async function changeAdminPass() {
   const np = document.getElementById('new-admin-pass').value;
   const cp = document.getElementById('confirm-admin-pass').value;
   if (!np) { toast('Enter new password','error'); return; }
   if (np !== cp) { toast('Passwords do not match','error'); return; }
   state.adminPass = np;
-  saveState();
   document.getElementById('new-admin-pass').value = '';
   document.getElementById('confirm-admin-pass').value = '';
-  toast('Password updated ✓','success');
+  try {
+    await gsPost({ action: 'saveConfig', config: getConfigPayload() });
+    toast('Password updated ✓','success');
+  } catch(e) { toast('Updated locally, Sheet sync failed','error'); }
 }
 
 function resetAll() {
-  if (!confirm('This will delete ALL data including subjects, students, and marks. Are you sure?')) return;
-  localStorage.removeItem('edumarks_state');
+  if (!confirm('Delete ALL local data? Sheet data stays safe.')) return;
+  state = { adminId:'ABC', adminPass:'123', subjects:{}, exams:[], students:[], marks:{} };
   location.reload();
 }
 
 function exportData() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'edumarks_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.download = 'edumarks_backup_'+new Date().toISOString().slice(0,10)+'.json';
   a.click();
 }
 
+// Config payload sent to Sheet
+function getConfigPayload() {
+  return {
+    adminId:   state.adminId,
+    adminPass: state.adminPass,
+    subjects:  state.subjects,
+    exams:     state.exams,
+    students:  state.students
+  };
+}
+
 function copyAppsScript() {
-  const code = `// Google Apps Script - Paste this in script.google.com
-// Sheet structure: One sheet per exam (PT1, PT2, HYE, etc.)
-// Columns: S.No | Roll No | Name | Subject1 (Max:30) | Subject2 (Max:30) | ...
+  const code = `// =====================================================
+// EduMarks Pro — Google Apps Script
+// TWO functions: doGet (fetch config) + doPost (save)
+// =====================================================
+
+function doGet(e) {
+  const action = e.parameter.action;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  if (action === 'getConfig') {
+    // Read Config sheet
+    let sheet = ss.getSheetByName('Config');
+    if (!sheet) {
+      // First time: create Config sheet with defaults
+      sheet = ss.insertSheet('Config');
+      sheet.getRange('A1').setValue('KEY');
+      sheet.getRange('B1').setValue('VALUE');
+      sheet.getRange('A1:B1').setFontWeight('bold');
+      sheet.getRange('A2').setValue('adminId');   sheet.getRange('B2').setValue('ABC');
+      sheet.getRange('A3').setValue('adminPass'); sheet.getRange('B3').setValue('123');
+      sheet.getRange('A4').setValue('subjects');  sheet.getRange('B4').setValue('{}');
+      sheet.getRange('A5').setValue('exams');     sheet.getRange('B5').setValue('[]');
+      sheet.getRange('A6').setValue('students');  sheet.getRange('B6').setValue('[]');
+    }
+    const data = sheet.getDataRange().getValues();
+    const config = {};
+    data.slice(1).forEach(row => {
+      if (row[0]) {
+        try { config[row[0]] = JSON.parse(row[1]); }
+        catch(e) { config[row[0]] = row[1]; }
+      }
+    });
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'ok', ...config }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'error', message: 'Unknown action' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-    // data = { exam: "PT1", subject: "Science", max: 30, students: [{roll, name}], marks: [{roll, name, marks}] }
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheetName = data.exam; // One sheet per exam e.g. "PT1"
-    let sheet = ss.getSheetByName(sheetName);
 
-    if (!sheet) {
-      // Create new sheet for this exam
-      sheet = ss.insertSheet(sheetName);
-      // Header row: S.No, Roll No, Name (subject columns added dynamically)
-      sheet.getRange(1, 1, 1, 3).setValues([['S.No', 'Roll No', 'Name']]);
-      sheet.getRange(1, 1, 1, 3).setFontWeight('bold');
+    // ── Save Config (students, subjects, exams, passwords) ──
+    if (data.action === 'saveConfig') {
+      let sheet = ss.getSheetByName('Config');
+      if (!sheet) sheet = ss.insertSheet('Config');
+      sheet.clearContents();
+      sheet.getRange('A1:B1').setValues([['KEY','VALUE']]);
+      sheet.getRange('A1:B1').setFontWeight('bold');
+      const cfg = data.config;
+      const rows = [
+        ['adminId',   cfg.adminId],
+        ['adminPass', cfg.adminPass],
+        ['subjects',  JSON.stringify(cfg.subjects)],
+        ['exams',     JSON.stringify(cfg.exams)],
+        ['students',  JSON.stringify(cfg.students)]
+      ];
+      sheet.getRange(2, 1, rows.length, 2).setValues(rows);
+      sheet.autoResizeColumns(1, 2);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'ok' }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Find or create the column for this subject
-    const headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const subjectHeader = data.subject + ' (Max:' + data.max + ')';
-    let subjectCol = headerRow.indexOf(subjectHeader) + 1;
-    if (subjectCol === 0) {
-      // Add new subject column
-      subjectCol = sheet.getLastColumn() + 1;
-      sheet.getRange(1, subjectCol).setValue(subjectHeader);
-      sheet.getRange(1, subjectCol).setFontWeight('bold');
-    }
-
-    // Get all students from the marks data
-    const allStudents = data.students; // [{roll, name}]
-    
-    // Build a map of existing roll numbers in the sheet (rows 2 onwards)
-    const lastRow = Math.max(sheet.getLastRow(), 1);
-    let rollToRow = {};
-    if (lastRow > 1) {
-      const existingData = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
-      existingData.forEach((row, i) => {
-        if (row[1]) rollToRow[String(row[1])] = i + 2; // row index (1-based)
-      });
-    }
-
-    // Ensure all students exist in the sheet
-    allStudents.forEach((s, idx) => {
-      if (!rollToRow[String(s.roll)]) {
-        const newRow = sheet.getLastRow() + 1;
-        sheet.getRange(newRow, 1, 1, 3).setValues([[idx + 1, s.roll, s.name]]);
-        rollToRow[String(s.roll)] = newRow;
+    // ── Save Marks (one sheet per exam, one col per subject) ──
+    if (data.action === 'saveMarks') {
+      const sheetName = data.exam; // e.g. PT1
+      let sheet = ss.getSheetByName(sheetName);
+      if (!sheet) {
+        sheet = ss.insertSheet(sheetName);
+        sheet.getRange(1, 1, 1, 3).setValues([['S.No', 'Roll No', 'Name']]);
+        sheet.getRange(1, 1, 1, 3).setFontWeight('bold');
       }
-    });
 
-    // Write marks in the subject column for each student
-    const marksMap = {};
-    data.marks.forEach(m => marksMap[String(m.roll)] = m.marks);
-    
-    Object.entries(rollToRow).forEach(([roll, rowNum]) => {
-      const mark = marksMap[roll] !== undefined ? marksMap[roll] : '';
-      sheet.getRange(rowNum, subjectCol).setValue(mark);
-    });
+      // Find or create subject column
+      const lastCol = Math.max(sheet.getLastColumn(), 3);
+      const headerRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      const subjectHeader = data.subject + ' (Max:' + data.max + ')';
+      let subjectCol = headerRow.indexOf(subjectHeader) + 1;
+      if (subjectCol === 0) {
+        subjectCol = lastCol + 1;
+        sheet.getRange(1, subjectCol).setValue(subjectHeader);
+        sheet.getRange(1, subjectCol).setFontWeight('bold');
+      }
 
-    // Auto-resize columns for neatness
-    sheet.autoResizeColumns(1, subjectCol);
+      // Map existing roll numbers to rows
+      const lastRow = Math.max(sheet.getLastRow(), 1);
+      let rollToRow = {};
+      if (lastRow > 1) {
+        const existing = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+        existing.forEach((row, i) => { if (row[1]) rollToRow[String(row[1])] = i + 2; });
+      }
 
-    return ContentService.createTextOutput(JSON.stringify({status:'ok'})).setMimeType(ContentService.MimeType.JSON);
+      // Add missing students
+      data.students.forEach((s, idx) => {
+        if (!rollToRow[String(s.roll)]) {
+          const newRow = sheet.getLastRow() + 1;
+          sheet.getRange(newRow, 1, 1, 3).setValues([[idx + 1, s.roll, s.name]]);
+          rollToRow[String(s.roll)] = newRow;
+        }
+      });
+
+      // Write marks
+      const marksMap = {};
+      data.marks.forEach(m => marksMap[String(m.roll)] = m.marks);
+      Object.entries(rollToRow).forEach(([roll, rowNum]) => {
+        sheet.getRange(rowNum, subjectCol).setValue(marksMap[roll] !== undefined ? marksMap[roll] : '');
+      });
+
+      sheet.autoResizeColumns(1, subjectCol);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: 'ok' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    throw new Error('Unknown action: ' + data.action);
   } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({status:'error', message:err.toString()})).setMimeType(ContentService.MimeType.JSON);
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }`;
-  navigator.clipboard.writeText(code).then(()=>toast('Apps Script code copied to clipboard ✓','success'));
+  navigator.clipboard.writeText(code).then(()=>toast('Apps Script code copied ✓','success'));
 }
 
 // ============================================================
@@ -963,7 +1052,6 @@ function doPost(e) {
 function renderSubjectPanel() {
   const subj = state.subjects[currentUser.subjectId];
   document.getElementById('subject-panel-title').innerHTML = `Subject: <span>${subj.name}</span>`;
-
   const sel = document.getElementById('exam-selector');
   sel.innerHTML = state.exams.map(e =>
     `<button class="exam-btn" onclick="selectExam('${e.id}')">${e.name}<br><small style="font-weight:400;font-size:11px;">(Max: ${e.max})</small></button>`
@@ -976,18 +1064,14 @@ function selectExam(examId) {
   currentExam = examId;
   document.querySelectorAll('.exam-btn').forEach(b => b.classList.remove('active'));
   event.currentTarget.classList.add('active');
-
-  const exam = state.exams.find(e=>e.id===examId);
-  const subjId = currentUser.subjectId;
-
+  const exam    = state.exams.find(e=>e.id===examId);
+  const subjId  = currentUser.subjectId;
   if (!marksBuffer[examId]) marksBuffer[examId] = {};
-  // Load saved marks into buffer
-  const saved = (state.marks[subjId]||{})[examId]||{};
+  const saved   = (state.marks[subjId]||{})[examId]||{};
   state.students.forEach(s => {
     if (marksBuffer[examId][s.roll] === undefined)
       marksBuffer[examId][s.roll] = saved[s.roll] !== undefined ? saved[s.roll] : '';
   });
-
   renderMarksTable(examId, exam);
   document.getElementById('save-info').textContent = `Editing: ${exam.name} (Max: ${exam.max} marks)`;
 }
@@ -999,27 +1083,21 @@ function renderMarksTable(examId, exam) {
     return;
   }
   area.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>#</th><th>Roll No</th><th>Student Name</th><th>Marks (/${exam.max})</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-          ${state.students.map((s,i)=>{
-            const v = marksBuffer[examId][s.roll];
-            return `<tr>
-              <td>${i+1}</td>
-              <td>${s.roll}</td>
-              <td>${s.name}</td>
-              <td><input type="number" min="0" max="${exam.max}" value="${v}" placeholder="—"
-                onchange="updateMark('${examId}','${s.roll}',this.value,'${exam.max}')"
-                oninput="updateMark('${examId}','${s.roll}',this.value,'${exam.max}')" /></td>
-              <td id="status-${examId}-${s.roll}">${getStatusBadge(v,exam.max)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`;
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Roll No</th><th>Student Name</th><th>Marks (/${exam.max})</th><th>Status</th></tr></thead>
+      <tbody>
+        ${state.students.map((s,i)=>{
+          const v = marksBuffer[examId][s.roll];
+          return `<tr>
+            <td>${i+1}</td><td>${s.roll}</td><td>${s.name}</td>
+            <td><input type="number" min="0" max="${exam.max}" value="${v}" placeholder="—"
+              onchange="updateMark('${examId}','${s.roll}',this.value,'${exam.max}')"
+              oninput="updateMark('${examId}','${s.roll}',this.value,'${exam.max}')" /></td>
+            <td id="status-${examId}-${s.roll}">${getStatusBadge(v,exam.max)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
 }
 
 function getStatusBadge(v, max) {
@@ -1034,51 +1112,31 @@ function updateMark(examId, roll, value, max) {
   if (value > parseFloat(max)) value = max;
   if (value < 0) value = 0;
   marksBuffer[examId][roll] = value;
-  const statusEl = document.getElementById(`status-${examId}-${roll}`);
-  if (statusEl) statusEl.innerHTML = getStatusBadge(value, max);
-}
-
-function saveMarksLocal() {
-  if (!currentExam) { toast('Select an exam first','error'); return; }
-  const subjId = currentUser.subjectId;
-  if (!state.marks[subjId]) state.marks[subjId] = {};
-  state.marks[subjId][currentExam] = { ...marksBuffer[currentExam] };
-  saveState();
-  toast('Marks saved locally ✓','success');
+  const el = document.getElementById(`status-${examId}-${roll}`);
+  if (el) el.innerHTML = getStatusBadge(value, max);
 }
 
 async function saveToGoogleSheets() {
   if (!currentExam) { toast('Select an exam first','error'); return; }
-  saveMarksLocal();
-  const exam = state.exams.find(e=>e.id===currentExam);
-  const subj = state.subjects[currentUser.subjectId];
-  // New payload: exam name is the sheet name; subject becomes a column
-  const students = state.students.map(s => ({ roll: s.roll, name: s.name }));
-  const marks = state.students.map(s => ({
-    roll: s.roll,
-    name: s.name,
-    marks: (marksBuffer[currentExam][s.roll] !== '' && marksBuffer[currentExam][s.roll] !== undefined)
+  const exam   = state.exams.find(e=>e.id===currentExam);
+  const subj   = state.subjects[currentUser.subjectId];
+  const students = state.students.map(s=>({roll:s.roll, name:s.name}));
+  const marks    = state.students.map(s=>({
+    roll: s.roll, name: s.name,
+    marks: (marksBuffer[currentExam][s.roll]!==''&&marksBuffer[currentExam][s.roll]!==undefined)
       ? marksBuffer[currentExam][s.roll] : 'AB'
   }));
-  const url = GS_URL || state.gsUrl;
-  if (!url) { toast('Google Sheets not configured. Ask admin to set it up.','error'); return; }
   try {
     toast('Syncing to Google Sheets...','');
-    const res = await fetch(url, {
-      method: 'POST',
-      body: JSON.stringify({
-        exam: exam.name,       // Sheet name e.g. "PT1"
-        subject: subj.name,    // Column header e.g. "Science"
-        max: exam.max,         // Max marks for this subject in this exam
-        students,              // Full student list for row setup
-        marks                  // Marks for this subject
-      }),
+    const r = await gsPost({
+      action: 'saveMarks',
+      exam: exam.name, subject: subj.name, max: exam.max,
+      students, marks
     });
-    const data = await res.json();
-    if (data.status === 'ok') toast('Synced to Google Sheets ✓','success');
-    else throw new Error(data.message||'Unknown error');
+    if (r.status === 'ok') toast('Synced to Google Sheets ✓','success');
+    else throw new Error(r.message||'Unknown error');
   } catch(err) {
-    toast('Sync failed: ' + err.message,'error');
+    toast('Sync failed: '+err.message,'error');
   }
 }
 
@@ -1089,20 +1147,25 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 
 let toastTimer;
 function toast(msg, type='success') {
-  const el = document.getElementById('toast');
-  const icon = document.getElementById('toast-icon');
+  const el    = document.getElementById('toast');
+  const icon  = document.getElementById('toast-icon');
   const msgEl = document.getElementById('toast-msg');
-  icon.textContent = type==='error'?'✕':type===''?'⏳':'✓';
+  icon.textContent  = type==='error'?'✕':type===''?'⏳':'✓';
   msgEl.textContent = msg;
   el.className = 'toast show ' + type;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>el.classList.remove('show'),3000);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 3500);
 }
 
-// Close modal on overlay click
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); });
 });
+
+// On page load — fetch config immediately so login form is ready
+(async () => {
+  await fetchConfigFromSheet();
+  populateSubjectSelect();
+})();
 </script>
 </body>
 </html>
