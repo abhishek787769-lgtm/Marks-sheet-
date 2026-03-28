@@ -928,6 +928,13 @@ function copyAppsScript() {
 // doPost only — Config is read via public CSV (no CORS issue)
 // =====================================================
 
+// doGet needed for browser URL test & CORS preflight
+function doGet(e) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'ok', message: 'EduMarks API ready' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
